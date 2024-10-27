@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import WalletSelector from "./WalletSelector";
+import { StatusIndicator } from "./StatusIndicator";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -55,6 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               })}
             </nav>
             <div className="flex items-center space-x-4">
+              <StatusIndicator />
               <WalletSelector />
               <div className="md:hidden">
                 <DropdownMenu>

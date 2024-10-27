@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Wallet, Settings } from "lucide-react";
+import { ChevronDown, Wallet, Settings, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,11 +14,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getWallets } from "@/app/actions/wallet";
+import useWalletStore from "@/app/store/useWalletStore";
 
 interface Wallet {
   chain: string;
   address: string;
   balance: string;
+  index: number;
 }
 
 const chainConfigs: Record<
@@ -59,25 +61,35 @@ const formatBalance = (balance: string): string => {
 
 export default function WalletSelector() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
+  const { activeWallet, setActiveWallet, setSelectedChain } = useWalletStore();
   const router = useRouter();
 
   useEffect(() => {
     const fetchWallets = async () => {
       const fetchedWallets = await getWallets();
       setWallets(fetchedWallets);
-      if (fetchedWallets.length > 0) {
-        setSelectedWallet(fetchedWallets[0]);
+      if (fetchedWallets.length > 0 && !activeWallet) {
+        setActiveWallet(fetchedWallets[0]);
+        setSelectedChain(fetchedWallets[0].chain);
       }
     };
     fetchWallets();
-  }, []);
+  }, [activeWallet, setActiveWallet, setSelectedChain]);
 
   const handleManageWallets = () => {
     router.push("/wallet");
   };
 
-  if (!selectedWallet) {
+  const handleManageContracts = () => {
+    router.push("/deploy-contract");
+  };
+
+  const handleSelectWallet = (wallet: Wallet) => {
+    setActiveWallet(wallet);
+    setSelectedChain(wallet.chain);
+  };
+
+  if (!activeWallet) {
     return (
       <Button
         variant="outline"
@@ -98,18 +110,18 @@ export default function WalletSelector() {
         >
           <div className="flex items-center">
             <Image
-              src={chainConfigs[selectedWallet.chain].logoUrl}
-              alt={chainConfigs[selectedWallet.chain].name}
+              src={chainConfigs[activeWallet.chain].logoUrl}
+              alt={chainConfigs[activeWallet.chain].name}
               width={20}
               height={20}
               className="mr-2 rounded-full"
             />
             <span className="mr-1 text-sm">
-              {chainConfigs[selectedWallet.chain].name}
+              {chainConfigs[activeWallet.chain].name}
             </span>
             <span className="font-mono text-xs">
-              {formatBalance(selectedWallet.balance)}{" "}
-              {chainConfigs[selectedWallet.chain].symbol}
+              {formatBalance(activeWallet.balance)}{" "}
+              {chainConfigs[activeWallet.chain].symbol}
             </span>
             <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
           </div>
@@ -126,7 +138,7 @@ export default function WalletSelector() {
         {wallets.map((wallet, index) => (
           <DropdownMenuItem
             key={index}
-            onSelect={() => setSelectedWallet(wallet)}
+            onSelect={() => handleSelectWallet(wallet)}
             className="flex items-center text-gray-300 focus:bg-gray-700 focus:text-white"
           >
             <Image
@@ -146,10 +158,17 @@ export default function WalletSelector() {
         <DropdownMenuSeparator className="bg-gray-700" />
         <DropdownMenuItem
           onSelect={handleManageWallets}
-          className="flex items-center text-gray-300 focus:bg-gray-700 focus:text-white"
+          className="flex items-center text-gray-300 focus:bg-gray-700 focus:text-white cursor-pointer"
         >
           <Settings className="mr-2 h-4 w-4" />
           <span>Manage Wallets</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={handleManageContracts}
+          className="flex items-center text-gray-300 focus:bg-gray-700 focus:text-white cursor-pointer"
+        >
+          <File className="mr-2 h-4 w-4" />
+          <span>Manage Contracts</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
