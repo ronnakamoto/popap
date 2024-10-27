@@ -1,101 +1,132 @@
-import Image from "next/image";
+import Link from "next/link";
+import { MapPin, Calendar, Shield, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="space-y-24 py-12">
+      {/* Hero Section */}
+      <section className="text-center space-y-6">
+        <h1 className="text-5xl md:text-6xl font-extrabold leading-tight tracking-tighter">
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+            Proof of Physical Attendance Protocol
+          </span>
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto">
+          Create, manage, and verify physical attendance for your events using
+          blockchain technology.
+        </p>
+        <div className="flex justify-center gap-4">
+          <Button
+            asChild
+            size="lg"
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <Link href="/create-event">Create Event</Link>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white transition-all duration-300"
           >
-            Read our docs
-          </a>
+            <Link href="/events">Explore Events</Link>
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      </section>
+
+      {/* Features Section */}
+      <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {[
+          {
+            icon: MapPin,
+            title: "Geolocation Verification",
+            description:
+              "Ensure attendees are physically present at your event location.",
+          },
+          {
+            icon: Calendar,
+            title: "Flexible Scheduling",
+            description:
+              "Create and manage events with customizable start and end times.",
+          },
+          {
+            icon: Shield,
+            title: "Blockchain Security",
+            description:
+              "Leverage blockchain technology for tamper-proof attendance records.",
+          },
+          {
+            icon: Users,
+            title: "NFT Certificates",
+            description:
+              "Issue unique NFTs as proof of attendance for participants.",
+          },
+        ].map((feature, index) => (
+          <div
+            key={index}
+            className="bg-gray-800 rounded-lg p-6 shadow-lg hover:shadow-purple-500/20 transition-shadow duration-300"
+          >
+            <feature.icon className="h-12 w-12 text-purple-400 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+            <p className="text-gray-400">{feature.description}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* How It Works Section */}
+      <section className="space-y-12">
+        <h2 className="text-3xl md:text-4xl font-bold text-center">
+          How It Works
+        </h2>
+        <div className="grid md:grid-cols-3 gap-8">
+          {[
+            {
+              step: 1,
+              title: "Create Event",
+              description:
+                "Set up your event with details, location, and attendance requirements.",
+            },
+            {
+              step: 2,
+              title: "Attendees Check-In",
+              description:
+                "Participants use the app to check in when they arrive at the event location.",
+            },
+            {
+              step: 3,
+              title: "Verify & Mint NFT",
+              description:
+                "After the event, attendees check out and receive a unique NFT as proof of attendance.",
+            },
+          ].map((step, index) => (
+            <div key={index} className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-purple-500 flex items-center justify-center text-2xl font-bold mb-4">
+                {step.step}
+              </div>
+              <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
+              <p className="text-gray-400">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="bg-gradient-to-r from-purple-800 to-pink-700 rounded-lg p-12 text-center">
+        <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          Ready to revolutionize event attendance?
+        </h2>
+        <p className="text-xl mb-8">
+          Join PPAP today and start creating blockchain-verified events!
+        </p>
+        <Button
+          asChild
+          size="lg"
+          className="bg-white text-purple-700 hover:bg-gray-100"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <Link href="/create-event">Get Started Now</Link>
+        </Button>
+      </section>
     </div>
   );
 }
