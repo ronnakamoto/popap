@@ -10,4 +10,11 @@ module.exports = {
     cache: "./cache",
     artifacts: "./artifacts",
   },
+  settings: {
+    optimizer: {
+      enabled: true,
+      runs: 200,
+    },
+    viaIR: true,
+  },
 };
