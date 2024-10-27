@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MapPin, Calendar, User, Menu, Wallet2 } from "lucide-react";
+import { MapPin, Calendar, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,12 +11,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import WalletSelector from "./WalletSelector";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const navItems = [
-    { name: "My Account", href: "/wallet", icon: Wallet2 },
     { name: "Events", href: "/events", icon: Calendar },
     { name: "Create Event", href: "/create-event", icon: MapPin },
     { name: "My Attendance", href: "/my-attendance", icon: User },
@@ -54,34 +54,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 );
               })}
             </nav>
-            <div className="md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 bg-gray-800 text-white border-gray-700"
-                >
-                  {navItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <DropdownMenuItem key={item.name} asChild>
-                        <Link
-                          href={item.href}
-                          className="flex items-center px-2 py-2 text-sm"
-                        >
-                          <Icon className="h-5 w-5 mr-2" />
-                          {item.name}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex items-center space-x-4">
+              <WalletSelector />
+              <div className="md:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Menu className="h-5 w-5" />
+                      <span className="sr-only">Open menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-56 bg-gray-800 text-white border-gray-700"
+                  >
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <DropdownMenuItem key={item.name} asChild>
+                          <Link
+                            href={item.href}
+                            className="flex items-center px-2 py-2 text-sm"
+                          >
+                            <Icon className="h-5 w-5 mr-2" />
+                            {item.name}
+                          </Link>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </div>
