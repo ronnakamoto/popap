@@ -57,13 +57,13 @@ const chainConfigs: Record<string, ChainConfig> = {
     name: "Aurora Mainnet",
     symbol: "ETH",
     explorerUrl: "https://aurorascan.dev",
-    logoUrl: "/images/aurora-logo.png",
+    logoUrl: "/images/aurora-logo.webp",
   },
   auroraTestnet: {
     name: "Aurora Testnet",
     symbol: "ETH",
     explorerUrl: "https://testnet.aurorascan.dev",
-    logoUrl: "/images/aurora-testnet-logo.png",
+    logoUrl: "/images/aurora-logo.webp",
   },
 };
 

@@ -7,20 +7,28 @@ import {
   useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Icon, LatLng } from "leaflet";
+import { Icon, LatLng, DivIcon } from "leaflet";
 import { useEffect } from "react";
 
-const eventIcon = new Icon({
-  iconUrl: "/images/marker-icon.png",
-  iconSize: [41, 41],
-  iconAnchor: [41, 41],
-});
+const createPulsingIcon = (iconUrl: string, color: string) => {
+  return new DivIcon({
+    className: "",
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30],
+    html: `
+      <div class="relative">
+        <div class="absolute inset-0 bg-${color}-500 rounded-full animate-ping opacity-75"></div>
+        <div class="relative flex items-center justify-center">
+          <img src="${iconUrl}" alt="" class="w-[30px] h-[30px]" />
+        </div>
+      </div>
+    `,
+  });
+};
 
-const userIcon = new Icon({
-  iconUrl: "/images/user-marker-icon.png",
-  iconSize: [41, 41],
-  iconAnchor: [41, 41],
-});
+const eventIcon = createPulsingIcon("/images/marker-icon.png", "purple");
+const userIcon = createPulsingIcon("/images/user-marker-icon.png", "blue");
 
 interface MapProps {
   center: [number, number];

@@ -24,6 +24,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import useWalletStore from "@/app/store/useWalletStore";
 import dynamic from "next/dynamic";
@@ -56,6 +57,8 @@ export default function EventDetailsPage() {
   const [isWithinGeofence, setIsWithinGeofence] = useState<boolean | null>(
     null,
   );
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const { toast } = useToast();
   const params = useParams();
   const { activeWallet, selectedChain } = useWalletStore();
@@ -150,6 +153,7 @@ export default function EventDetailsPage() {
     )
       return;
 
+    setIsCheckingIn(true);
     try {
       await checkIn(
         event.id,
@@ -173,6 +177,8 @@ export default function EventDetailsPage() {
           "There was an error checking in to the event. Please ensure you're within the event's geofence.",
         variant: "destructive",
       });
+    } finally {
+      setIsCheckingIn(false);
     }
   };
 
@@ -186,6 +192,7 @@ export default function EventDetailsPage() {
     )
       return;
 
+    setIsCheckingOut(true);
     try {
       await checkOut(
         event.id,
@@ -208,6 +215,8 @@ export default function EventDetailsPage() {
           "There was an error checking out of the event. Please ensure you're within the event's geofence.",
         variant: "destructive",
       });
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 
@@ -348,20 +357,33 @@ export default function EventDetailsPage() {
             <Button
               onClick={handleCheckIn}
               className="bg-purple-600 text-white hover:bg-purple-700"
-              disabled={!activeWallet || !userLocation || !isWithinGeofence}
+              disabled={
+                !activeWallet ||
+                !userLocation ||
+                !isWithinGeofence ||
+                isCheckingIn
+              }
             >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Check In
+              {isCheckingIn ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              )}
+              {isCheckingIn ? "Checking In..." : "Check In"}
             </Button>
           ) : (
             <Button
               onClick={handleCheckOut}
               variant="destructive"
               className="bg-red-600 text-white hover:bg-red-700"
-              disabled={!userLocation || !isWithinGeofence}
+              disabled={!userLocation || !isWithinGeofence || isCheckingOut}
             >
-              <XCircle className="mr-2 h-4 w-4" />
-              Check Out
+              {isCheckingOut ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-4 w-4" />
+              )}
+              {isCheckingOut ? "Checking Out..." : "Check Out"}
             </Button>
           )}
         </CardFooter>

@@ -351,6 +351,8 @@ export async function checkIn(
       ],
     });
 
+    console.log("result: ", result);
+
     const checkInKey = `checkin:${eventId}:${userAddress}`;
     await kv.set(checkInKey, Date.now());
 
@@ -405,6 +407,8 @@ export async function checkOut(
         longitude < 0,
       ],
     });
+
+    console.log("result: ", result);
 
     const checkInKey = `checkin:${eventId}:${userAddress}`;
     await kv.del(checkInKey);
