@@ -23,6 +23,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  AlertCircle,
 } from "lucide-react";
 import useWalletStore from "@/app/store/useWalletStore";
 import dynamic from "next/dynamic";
@@ -52,6 +53,9 @@ export default function EventDetailsPage() {
   const [checkInTime, setCheckInTime] = useState<number | null>(null);
   const [userLocation, setUserLocation] =
     useState<GeolocationCoordinates | null>(null);
+  const [isWithinGeofence, setIsWithinGeofence] = useState<boolean | null>(
+    null,
+  );
   const { toast } = useToast();
   const params = useParams();
   const { activeWallet, selectedChain } = useWalletStore();
@@ -79,8 +83,19 @@ export default function EventDetailsPage() {
 
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => setUserLocation(position.coords),
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          setUserLocation(position.coords);
+          if (event) {
+            const distance = calculateDistance(
+              position.coords.latitude,
+              position.coords.longitude,
+              event.latitude,
+              event.longitude,
+            );
+            setIsWithinGeofence(distance <= event.radiusMiles);
+          }
+        },
         (error) => {
           console.error("Error getting user location:", error);
           toast({
@@ -90,7 +105,10 @@ export default function EventDetailsPage() {
             variant: "destructive",
           });
         },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 },
       );
+
+      return () => navigator.geolocation.clearWatch(watchId);
     } else {
       toast({
         title: "Geolocation Unavailable",
@@ -99,10 +117,38 @@ export default function EventDetailsPage() {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [event, toast]);
+
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) => {
+    const R = 3959; // Earth's radius in miles
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const toRad = (value: number) => (value * Math.PI) / 180;
 
   const handleCheckIn = async () => {
-    if (!event || !activeWallet || !selectedChain || !userLocation) return;
+    if (
+      !event ||
+      !activeWallet ||
+      !selectedChain ||
+      !userLocation ||
+      !isWithinGeofence
+    )
+      return;
 
     try {
       await checkIn(
@@ -131,7 +177,14 @@ export default function EventDetailsPage() {
   };
 
   const handleCheckOut = async () => {
-    if (!event || !activeWallet || !selectedChain || !userLocation) return;
+    if (
+      !event ||
+      !activeWallet ||
+      !selectedChain ||
+      !userLocation ||
+      !isWithinGeofence
+    )
+      return;
 
     try {
       await checkOut(
@@ -241,8 +294,39 @@ export default function EventDetailsPage() {
                 zoom={15}
                 eventName={event.name}
                 radiusMiles={event.radiusMiles}
+                userLocation={
+                  userLocation
+                    ? [userLocation.latitude, userLocation.longitude]
+                    : null
+                }
               />
             </div>
+          </div>
+          <div className="bg-gray-700 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold text-purple-300 mb-2">
+              Location Status
+            </h3>
+            <div className="flex items-center space-x-2">
+              {isWithinGeofence === null ? (
+                <AlertCircle className="text-yellow-500" />
+              ) : isWithinGeofence ? (
+                <CheckCircle className="text-green-500" />
+              ) : (
+                <XCircle className="text-red-500" />
+              )}
+              <p className="text-gray-300">
+                {isWithinGeofence === null
+                  ? "Determining your location..."
+                  : isWithinGeofence
+                    ? "You're within the event area!"
+                    : "You're outside the event area."}
+              </p>
+            </div>
+            {!isWithinGeofence && userLocation && (
+              <p className="text-sm text-gray-400 mt-2">
+                Move closer to the event location to check in.
+              </p>
+            )}
           </div>
           {isCheckedIn && checkInTime && (
             <div className="bg-gray-700 p-4 rounded-lg">
@@ -264,7 +348,7 @@ export default function EventDetailsPage() {
             <Button
               onClick={handleCheckIn}
               className="bg-purple-600 text-white hover:bg-purple-700"
-              disabled={!activeWallet || !userLocation}
+              disabled={!activeWallet || !userLocation || !isWithinGeofence}
             >
               <CheckCircle className="mr-2 h-4 w-4" />
               Check In
@@ -274,7 +358,7 @@ export default function EventDetailsPage() {
               onClick={handleCheckOut}
               variant="destructive"
               className="bg-red-600 text-white hover:bg-red-700"
-              disabled={!userLocation}
+              disabled={!userLocation || !isWithinGeofence}
             >
               <XCircle className="mr-2 h-4 w-4" />
               Check Out
