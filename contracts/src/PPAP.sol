@@ -86,6 +86,7 @@ contract ProofOfPhysicalAttendance is
     error MinimumStayNotMet();
 
     constructor() ERC721("Proof of Physical Attendance", "PPAP") {
+        verifiedOrganizers[msg.sender] = true;
         _transferOwnership(msg.sender);
     }
 

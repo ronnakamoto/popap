@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { time } = require("@nomicfoundation/hardhat-network-helpers");
@@ -8,7 +10,6 @@ describe("Proof of Physical Attendance Protocol - REDACTED 2024", function () {
   let organizer;
   let attendee1;
   let attendee2;
-  let attendee3;
   let currentTimestamp;
 
   // AVANI+ Riverside Bangkok Hotel coordinates (13.7025°N, 100.4897°E)
@@ -49,6 +50,27 @@ describe("Proof of Physical Attendance Protocol - REDACTED 2024", function () {
       longitude: 10048970,
       longitudeIsNegative: false,
     },
+    southernHemisphere: {
+      // Sydney Opera House coordinates (33.8568°S, 151.2153°E)
+      latitude: 3385680,
+      latitudeIsNegative: true,
+      longitude: 15121530,
+      longitudeIsNegative: false,
+    },
+    westernHemisphere: {
+      // Times Square coordinates (40.7580°N, 73.9855°W)
+      latitude: 4075800,
+      latitudeIsNegative: false,
+      longitude: 7398550,
+      longitudeIsNegative: true,
+    },
+    southWesternLocation: {
+      // Rio de Janeiro Christ the Redeemer (22.9519°S, 43.2105°W)
+      latitude: 2295190,
+      latitudeIsNegative: true,
+      longitude: 4321050,
+      longitudeIsNegative: true,
+    },
   };
 
   beforeEach(async function () {
@@ -70,6 +92,10 @@ describe("Proof of Physical Attendance Protocol - REDACTED 2024", function () {
     it("Should initialize with correct name and symbol", async function () {
       expect(await ppap.name()).to.equal("Proof of Physical Attendance");
       expect(await ppap.symbol()).to.equal("PPAP");
+    });
+
+    it("Should set the deployer as a valid organizer", async function () {
+      expect(await ppap.verifiedOrganizers(owner.address)).to.be.true;
     });
   });
 
@@ -324,6 +350,139 @@ describe("Proof of Physical Attendance Protocol - REDACTED 2024", function () {
             locations.insideVenue.longitudeIsNegative
           )
       ).to.be.revertedWithCustomError(ppap, "EventNotInProgress");
+    });
+  });
+
+  describe("Global Coordinates Handling", function () {
+    beforeEach(async function () {
+      // Create events in different hemispheres
+      const createEventInLocation = async (location, name) => {
+        const eventData = {
+          ...getEventData(currentTimestamp),
+          name: name,
+          latitude: location.latitude,
+          latitudeIsNegative: location.latitudeIsNegative,
+          longitude: location.longitude,
+          longitudeIsNegative: location.longitudeIsNegative,
+        };
+
+        await ppap
+          .connect(organizer)
+          .createEvent(
+            eventData.name,
+            eventData.description,
+            eventData.startTime,
+            eventData.endTime,
+            eventData.latitude,
+            eventData.latitudeIsNegative,
+            eventData.longitude,
+            eventData.longitudeIsNegative,
+            eventData.radiusMiles,
+            eventData.maxAttendees,
+            eventData.minStayMinutes
+          );
+      };
+
+      // Create three events in different hemispheres
+      await createEventInLocation(locations.southernHemisphere, "Sydney Event");
+      await createEventInLocation(
+        locations.westernHemisphere,
+        "New York Event"
+      );
+      await createEventInLocation(locations.southWesternLocation, "Rio Event");
+
+      await time.increaseTo(currentTimestamp + 86400); // Move to event start time
+    });
+
+    it("Should handle check-in at Southern Hemisphere location", async function () {
+      await expect(
+        ppap
+          .connect(attendee1)
+          .checkIn(
+            0,
+            locations.southernHemisphere.latitude,
+            locations.southernHemisphere.latitudeIsNegative,
+            locations.southernHemisphere.longitude,
+            locations.southernHemisphere.longitudeIsNegative
+          )
+      ).to.not.be.reverted;
+    });
+
+    it("Should handle check-in at Western Hemisphere location", async function () {
+      await expect(
+        ppap
+          .connect(attendee1)
+          .checkIn(
+            1,
+            locations.westernHemisphere.latitude,
+            locations.westernHemisphere.latitudeIsNegative,
+            locations.westernHemisphere.longitude,
+            locations.westernHemisphere.longitudeIsNegative
+          )
+      ).to.not.be.reverted;
+    });
+
+    it("Should handle check-in at South-Western Hemisphere location", async function () {
+      await expect(
+        ppap
+          .connect(attendee1)
+          .checkIn(
+            2,
+            locations.southWesternLocation.latitude,
+            locations.southWesternLocation.latitudeIsNegative,
+            locations.southWesternLocation.longitude,
+            locations.southWesternLocation.longitudeIsNegative
+          )
+      ).to.not.be.reverted;
+    });
+
+    it("Should complete full attendance cycle with negative coordinates", async function () {
+      // Check in at Rio location
+      await ppap
+        .connect(attendee1)
+        .checkIn(
+          2,
+          locations.southWesternLocation.latitude,
+          locations.southWesternLocation.latitudeIsNegative,
+          locations.southWesternLocation.longitude,
+          locations.southWesternLocation.longitudeIsNegative
+        );
+
+      // Wait minimum duration
+      await time.increase(3600); // 1 hour
+
+      // Check out
+      await expect(
+        ppap
+          .connect(attendee1)
+          .checkOut(
+            2,
+            locations.southWesternLocation.latitude,
+            locations.southWesternLocation.latitudeIsNegative,
+            locations.southWesternLocation.longitude,
+            locations.southWesternLocation.longitudeIsNegative
+          )
+      )
+        .to.emit(ppap, "AttendanceVerified")
+        .withArgs(2, 0, attendee1.address);
+
+      // Verify NFT ownership
+      expect(await ppap.ownerOf(0)).to.equal(attendee1.address);
+    });
+
+    it("Should reject check-in at incorrect negative coordinates", async function () {
+      // Try to check in at Rio event with Sydney coordinates
+      await expect(
+        ppap
+          .connect(attendee1)
+          .checkIn(
+            2,
+            locations.southernHemisphere.latitude,
+            locations.southernHemisphere.latitudeIsNegative,
+            locations.southernHemisphere.longitude,
+            locations.southernHemisphere.longitudeIsNegative
+          )
+      ).to.be.revertedWithCustomError(ppap, "OutsideGeofence");
     });
   });
 });

@@ -66,7 +66,7 @@ export function StatusIndicator() {
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 bg-gray-800 border-gray-700">
+      <PopoverContent className="w-80 p-0 bg-gray-800 border-gray-700 z-auto">
         <div className="p-4 border-b border-gray-700">
           <h4 className="text-lg font-semibold text-gray-100 mb-2">
             Bunsan Status

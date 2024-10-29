@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { useState, useEffect, useRef } from "react";
+import { MapContainer, TileLayer, Marker, useMap, Popup } from "react-leaflet";
 import { Icon } from "leaflet";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,9 +25,21 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { createEvent, getDeployedContracts } from "@/app/actions/contract";
+import useWalletStore from "@/app/store/useWalletStore";
 import "leaflet/dist/leaflet.css";
+import { Loader2, Search, MapPin } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 const customIcon = new Icon({
   iconUrl: "/images/marker-icon.png",
@@ -58,13 +70,43 @@ const formSchema = z.object({
   radiusMiles: z
     .number()
     .min(0.1, { message: "Radius must be at least 0.1 miles" }),
+  contractAddress: z.string().min(1, { message: "Please select a contract" }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface DeployedContract {
+  address: string;
+  chain: string;
+  deployedAt: number;
+}
+
+function MapEvents({
+  setPosition,
+}: {
+  setPosition: (pos: [number, number]) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.on("click", (e) => {
+      setPosition([e.latlng.lat, e.latlng.lng]);
+    });
+  }, [map, setPosition]);
+
+  return null;
+}
+
 export default function CreateEventPage() {
   const [position, setPosition] = useState<[number, number]>([51.505, -0.09]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [deployedContracts, setDeployedContracts] = useState<
+    DeployedContract[]
+  >([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const mapRef = useRef(null);
   const { toast } = useToast();
+  const { activeWallet, selectedChain } = useWalletStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -79,35 +121,134 @@ export default function CreateEventPage() {
       latitude: position[0],
       longitude: position[1],
       radiusMiles: 0.1,
+      contractAddress: "",
     },
   });
 
-  function MapEvents() {
-    useMapEvents({
-      click(e) {
-        setPosition([e.latlng.lat, e.latlng.lng]);
-        form.setValue("latitude", e.latlng.lat);
-        form.setValue("longitude", e.latlng.lng);
-      },
-    });
-    return null;
-  }
+  useEffect(() => {
+    async function fetchDeployedContracts() {
+      try {
+        const contracts = await getDeployedContracts();
+        setDeployedContracts(contracts);
+      } catch (error) {
+        console.error("Error fetching deployed contracts:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch deployed contracts",
+          variant: "destructive",
+        });
+      }
+    }
+    fetchDeployedContracts();
+  }, [toast]);
+
+  const handlePositionChange = (newPosition: [number, number]) => {
+    setPosition(newPosition);
+    form.setValue("latitude", newPosition[0]);
+    form.setValue("longitude", newPosition[1]);
+  };
+
+  const handleSearch = async () => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`,
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        handlePositionChange([parseFloat(lat), parseFloat(lon)]);
+        mapRef.current?.flyTo([lat, lon], 13);
+      } else {
+        toast({
+          title: "Location not found",
+          description: "Please try a different search query.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error searching for location:", error);
+      toast({
+        title: "Search Error",
+        description: "An error occurred while searching for the location.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCurrentLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          handlePositionChange([latitude, longitude]);
+          mapRef.current?.flyTo([latitude, longitude], 13);
+        },
+        (error) => {
+          console.error("Error getting current location:", error);
+          toast({
+            title: "Location Error",
+            description:
+              "Unable to get your current location. Please ensure you've granted permission.",
+            variant: "destructive",
+          });
+        },
+      );
+    } else {
+      toast({
+        title: "Geolocation Unavailable",
+        description: "Your browser doesn't support geolocation.",
+        variant: "destructive",
+      });
+    }
+  };
 
   async function onSubmit(data: FormValues) {
+    if (!activeWallet || !selectedChain) {
+      toast({
+        title: "Error",
+        description: "No active wallet or chain selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      // Here you would interact with your smart contract
-      console.log(data);
+      const result = await createEvent({
+        chain: selectedChain,
+        from: activeWallet.address,
+        index: activeWallet.index,
+        contractAddress: data.contractAddress,
+        eventParams: {
+          name: data.name,
+          description: data.description,
+          startTime: Math.floor(new Date(data.startTime).getTime() / 1000),
+          endTime: Math.floor(new Date(data.endTime).getTime() / 1000),
+          maxAttendees: data.maxAttendees,
+          minStayMinutes: data.minStayMinutes,
+          requiresVerification: data.requiresVerification,
+          latitude: Math.floor(data.latitude * 1e6),
+          longitude: Math.floor(data.longitude * 1e6),
+          radiusMiles: Math.floor(data.radiusMiles * 1e6),
+        },
+      });
+
       toast({
         title: "Event Created",
-        description: "Your event has been successfully created!",
+        description: `Your event has been successfully created! Transaction Hash: ${result.transactionHash}`,
       });
     } catch (error) {
+      console.error("Error creating event:", error);
       toast({
         title: "Error",
         description:
-          "There was an error creating your event. Please try again.",
+          error instanceof Error
+            ? error.message
+            : "There was an error creating your event. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -125,6 +266,62 @@ export default function CreateEventPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <FormField
+                control={form.control}
+                name="contractAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-200">
+                      Select Contract
+                    </FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="bg-gray-700 text-gray-100 border-gray-600">
+                          <SelectValue placeholder="Select a deployed contract" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-gray-800 text-gray-100 border-gray-600">
+                        {deployedContracts.map((contract, index) => (
+                          <SelectItem
+                            key={contract.address}
+                            value={contract.address}
+                            className="focus:bg-gray-700 focus:text-gray-100"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span>
+                                {contract.address.slice(0, 6)}...
+                                {contract.address.slice(-4)} ({contract.chain})
+                              </span>
+                              <div className="ml-2 flex items-center space-x-2">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs bg-gray-700 text-gray-300 border-gray-600"
+                                >
+                                  {formatDistanceToNow(contract.deployedAt, {
+                                    addSuffix: true,
+                                  })}
+                                </Badge>
+                                {index === 0 && (
+                                  <Badge
+                                    variant="default"
+                                    className="text-xs bg-purple-600 text-white"
+                                  >
+                                    Latest
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="name"
@@ -291,29 +488,72 @@ export default function CreateEventPage() {
               <div className="space-y-2">
                 <FormLabel className="text-gray-200">Event Location</FormLabel>
                 <FormDescription className="text-gray-400">
-                  Click on the map to set the event location
+                  Search for a location, use your current location, or click on
+                  the map to set the event location
                 </FormDescription>
+                <div className="flex space-x-2 mb-2">
+                  <Input
+                    type="text"
+                    placeholder="Search for a location"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-gray-700 text-gray-100 border-gray-600"
+                  />
+                  <Button
+                    onClick={handleSearch}
+                    type="button"
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Search
+                  </Button>
+                  <Button
+                    onClick={handleCurrentLocation}
+                    type="button"
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Current Location
+                  </Button>
+                </div>
                 <div className="h-[400px] rounded-md overflow-hidden">
                   <MapContainer
                     center={position}
                     zoom={13}
                     scrollWheelZoom={false}
                     style={{ height: "100%", width: "100%" }}
+                    ref={mapRef}
                   >
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <Marker position={position} icon={customIcon} />
-                    <MapEvents />
+                    <Marker position={position} icon={customIcon}>
+                      <Popup>
+                        <div className="text-gray-800">
+                          <h3 className="font-bold">Event Location</h3>
+                          <p>Latitude: {position[0].toFixed(6)}</p>
+                          <p>Longitude: {position[1].toFixed(6)}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                    <MapEvents setPosition={handlePositionChange} />
                   </MapContainer>
                 </div>
               </div>
               <Button
                 type="submit"
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                disabled={isLoading}
               >
-                Create Event
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Event...
+                  </>
+                ) : (
+                  "Create Event"
+                )}
               </Button>
             </form>
           </Form>
