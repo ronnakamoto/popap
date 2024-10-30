@@ -59,30 +59,42 @@ export default function EventDetailsPage() {
   );
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const params = useParams();
   const { activeWallet, selectedChain } = useWalletStore();
 
   useEffect(() => {
-    async function fetchEvent() {
-      if (typeof params.id !== "string") return;
-
+    async function fetchEventDetails() {
       try {
-        const fetchedEvent = await getEvent(params.id);
-        setEvent(fetchedEvent);
-      } catch (error) {
-        console.error("Error fetching event:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch event details",
-          variant: "destructive",
-        });
+        const decodedId = decodeURIComponent(params.id as string);
+        const [chain, contractAddress, eventId] = decodedId.split(":");
+
+        if (!chain || !contractAddress || !eventId) {
+          throw new Error("Invalid event ID format");
+        }
+
+        console.log(
+          "chain, contractAddress, eventId: ",
+          chain,
+          contractAddress,
+          eventId,
+        );
+        const eventDetails = await getEvent(chain, contractAddress, eventId);
+        console.log("eventDetails: ", eventDetails);
+        setEvent(eventDetails);
+      } catch (err) {
+        console.error("Error fetching event:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch event details",
+        );
       } finally {
         setIsLoading(false);
       }
     }
-    fetchEvent();
-  }, [params.id, toast]);
+
+    fetchEventDetails();
+  }, [params.id]);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -233,6 +245,21 @@ export default function EventDetailsPage() {
           </CardContent>
         </Card>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="w-full max-w-4xl mx-auto bg-gray-800/50 text-gray-100 border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">
+            Error Loading Event
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>{error}</p>
+        </CardContent>
+      </Card>
     );
   }
 

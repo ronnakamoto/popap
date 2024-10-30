@@ -66,7 +66,7 @@ export default function DeployContractPage() {
         index: activeWallet.index,
       });
       toast({
-        title: "Contract Deployed",
+        title: "Contract Deployed! 🎉",
         description: (
           <div>
             <p>

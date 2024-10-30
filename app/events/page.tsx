@@ -15,8 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getEvents } from "@/app/actions/contract";
-import { format } from "date-fns";
-import { MapPin, Calendar, Users, Clock } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import {
+  MapPin,
+  Calendar,
+  Users,
+  Clock,
+  Link as LinkIcon,
+  ExternalLink,
+} from "lucide-react";
+import Link from "next/link";
 
 interface Event {
   id: string;
@@ -31,6 +39,9 @@ interface Event {
   creator: string;
   contractAddress: string;
   chain: string;
+  explorerUrl: string;
+  status?: string;
+  eventId: string; // Added to handle the numeric event ID
 }
 
 export default function EventListPage() {
@@ -38,6 +49,10 @@ export default function EventListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
   useEffect(() => {
     async function fetchEvents() {
@@ -58,8 +73,20 @@ export default function EventListPage() {
     fetchEvents();
   }, [toast]);
 
-  const handleViewDetails = (eventId: string) => {
-    router.push(`/events/${eventId}`);
+  const handleViewDetails = (event: Event) => {
+    const compositeId = `${event.chain}:${event.contractAddress}:${event.eventId}`;
+    router.push(`/events/${compositeId}`);
+  };
+
+  const getChainBadgeColor = (chain: string) => {
+    switch (chain.toLowerCase()) {
+      case "sepolia":
+        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+      case "goerli":
+        return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      default:
+        return "bg-gray-500/10 text-gray-500 border-gray-500/20";
+    }
   };
 
   return (
@@ -95,15 +122,34 @@ export default function EventListPage() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => (
                 <Card
-                  key={event.id}
-                  className="bg-gray-700 border-gray-600 overflow-hidden"
+                  key={`${event.chain}:${event.contractAddress}:${event.eventId}`}
+                  className="bg-gray-700 border-gray-600 overflow-hidden group hover:border-purple-500/50 transition-colors"
                 >
                   <CardHeader>
-                    <CardTitle className="text-xl font-semibold text-purple-300">
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant="outline"
+                        className={`${getChainBadgeColor(event.chain)} capitalize`}
+                      >
+                        {event.chain}
+                      </Badge>
+                      {event.status && (
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                        >
+                          {event.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <CardTitle className="text-xl font-semibold text-purple-300 mt-2">
                       {event.name}
                     </CardTitle>
                     <CardDescription className="text-gray-400">
-                      {format(new Date(event.startTime * 1000), "PPP")}
+                      Starts{" "}
+                      {formatDistanceToNow(new Date(event.startTime * 1000), {
+                        addSuffix: true,
+                      })}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -113,10 +159,16 @@ export default function EventListPage() {
                     <div className="space-y-2">
                       <div className="flex items-center text-sm text-gray-400">
                         <Calendar className="mr-2 h-4 w-4" />
-                        <span>
-                          {format(new Date(event.startTime * 1000), "p")} -{" "}
-                          {format(new Date(event.endTime * 1000), "p")}
-                        </span>
+                        <div className="flex flex-col">
+                          <span>
+                            Starts:{" "}
+                            {format(new Date(event.startTime * 1000), "PPP p")}
+                          </span>
+                          <span>
+                            Ends:{" "}
+                            {format(new Date(event.endTime * 1000), "PPP p")}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center text-sm text-gray-400">
                         <MapPin className="mr-2 h-4 w-4" />
@@ -133,19 +185,36 @@ export default function EventListPage() {
                         <Clock className="mr-2 h-4 w-4" />
                         <span>Min Stay: {event.minStayMinutes} minutes</span>
                       </div>
+                      <div className="flex items-center text-sm">
+                        {event.explorerUrl ? (
+                          <Link
+                            href={event.explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center text-purple-400 hover:text-purple-300 transition-colors"
+                          >
+                            <LinkIcon className="mr-2 h-4 w-4" />
+                            <span className="truncate">
+                              Contract: {formatAddress(event.contractAddress)}
+                            </span>
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Link>
+                        ) : (
+                          <div className="flex items-center text-gray-400">
+                            <LinkIcon className="mr-2 h-4 w-4" />
+                            <span className="truncate">
+                              Contract: {formatAddress(event.contractAddress)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-between items-center">
-                    <Badge
-                      variant="outline"
-                      className="text-xs bg-gray-600 text-gray-300 border-gray-500"
-                    >
-                      {event.chain}
-                    </Badge>
+                  <CardFooter className="flex justify-end">
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => handleViewDetails(event.id)}
+                      onClick={() => handleViewDetails(event)}
                       className="bg-purple-600 text-white hover:bg-purple-700"
                     >
                       View Details

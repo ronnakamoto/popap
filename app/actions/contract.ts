@@ -159,6 +159,15 @@ export async function callContractMethod({
 //   return `'${str.replace(/'/g, "\\'")}'`;
 // }
 
+async function getNextEventId(
+  contractAddress: string,
+  chain: string,
+): Promise<number> {
+  const key = `nextEventId:${chain}:${contractAddress}`;
+  const nextId = await kv.incr(key);
+  return nextId - 1; // We return nextId - 1 because incr returns the new value after incrementing
+}
+
 export async function createEvent({
   chain,
   from,
@@ -181,6 +190,9 @@ export async function createEvent({
 
     const latitudeAbs = Math.abs(Math.floor(latitude * 1e6));
     const longitudeAbs = Math.abs(Math.floor(longitude * 1e6));
+
+    // Get the next event ID for this contract
+    const eventId = await getNextEventId(contractAddress, chain);
 
     // Find the createEvent ABI
     const createEventABI = ProofOfPhysicalAttendanceABI.abi.find(
@@ -216,33 +228,22 @@ export async function createEvent({
     // Store the event details in KV store
     const txHash = result.data.hash;
     const explorerUrl = result.data.explorerUrl;
-    await kv.set(`event:${txHash}`, {
+    await kv.set(`event:${chain}:${contractAddress}:${eventId}`, {
       ...eventParams,
+      eventId,
       creator: from,
       contractAddress,
       chain,
       explorerUrl,
+      txHash,
     });
 
-    return { contractAddress, transactionHash: txHash, explorerUrl };
+    return { contractAddress, transactionHash: txHash, explorerUrl, eventId };
   } catch (error) {
     console.error("Error creating event:", error);
     throw error;
   }
 }
-
-// export async function getEvent(eventId: string) {
-//   try {
-//     const eventDetails = await kv.get<any>(`event:${eventId}`);
-//     if (!eventDetails) {
-//       throw new Error("Event not found");
-//     }
-//     return eventDetails;
-//   } catch (error) {
-//     console.error("Error fetching event details:", error);
-//     throw error;
-//   }
-// }
 
 export async function getDeployedContracts() {
   try {
@@ -273,28 +274,40 @@ export async function getEvents() {
     const events = await Promise.all(
       keys.map(async (key) => {
         const event = await kv.get(key);
+        if (!event) return null;
+
         return {
-          id: key.split(":")[1],
+          id: event.eventId, // Use eventId from the event object
           ...event,
+          // Convert coordinates from stored format (already in event object with correct values)
           latitude: event.latitude / 1e6,
           longitude: event.longitude / 1e6,
           radiusMiles: event.radiusMiles / 1e6,
+          // These fields are already in the event object, no need to parse from key
+          chain: event.chain,
+          contractAddress: event.contractAddress,
         };
       }),
     );
-    return events;
+
+    // Filter out any null events and return
+    return events.filter(Boolean);
   } catch (error) {
     console.error("Error fetching events:", error);
     throw error;
   }
 }
 
-export async function getEvent(id: string) {
+export async function getEvent(
+  chain: string,
+  contractAddress: string,
+  eventId: string,
+) {
   try {
-    const event = await kv.get(`event:${id}`);
+    const event = await kv.get(`event:${chain}:${contractAddress}:${eventId}`);
     if (!event) throw new Error("Event not found");
     return {
-      id,
+      id: eventId,
       ...event,
       latitude: event.latitude / 1e6,
       longitude: event.longitude / 1e6,
@@ -307,15 +320,16 @@ export async function getEvent(id: string) {
 }
 
 export async function checkIn(
+  chain: string,
+  contractAddress: string,
   eventId: string,
   userAddress: string,
-  chain: string,
   index: number,
   latitude: number,
   longitude: number,
 ) {
   try {
-    const event = await getEvent(eventId);
+    const event = await getEvent(chain, contractAddress, eventId);
     if (!event) throw new Error("Event not found");
 
     const latitudeAbs = Math.abs(Math.floor(latitude * 1e6));
@@ -323,7 +337,7 @@ export async function checkIn(
 
     const result = await callContractMethod({
       chain,
-      to: event.contractAddress,
+      to: contractAddress,
       from: userAddress,
       method: "checkIn",
       abi: JSON.stringify([
@@ -351,9 +365,9 @@ export async function checkIn(
       ],
     });
 
-    console.log("result: ", result);
+    console.log("Check-in result:", result);
 
-    const checkInKey = `checkin:${eventId}:${userAddress}`;
+    const checkInKey = `checkin:${chain}:${contractAddress}:${eventId}:${userAddress}`;
     await kv.set(checkInKey, Date.now());
 
     return result;
@@ -364,15 +378,16 @@ export async function checkIn(
 }
 
 export async function checkOut(
+  chain: string,
+  contractAddress: string,
   eventId: string,
   userAddress: string,
-  chain: string,
   index: number,
   latitude: number,
   longitude: number,
 ) {
   try {
-    const event = await getEvent(eventId);
+    const event = await getEvent(chain, contractAddress, eventId);
     if (!event) throw new Error("Event not found");
 
     const latitudeAbs = Math.abs(Math.floor(latitude * 1e6));
@@ -380,7 +395,7 @@ export async function checkOut(
 
     const result = await callContractMethod({
       chain,
-      to: event.contractAddress,
+      to: contractAddress,
       from: userAddress,
       method: "checkOut",
       abi: JSON.stringify([
@@ -408,9 +423,9 @@ export async function checkOut(
       ],
     });
 
-    console.log("result: ", result);
+    console.log("Check-out result:", result);
 
-    const checkInKey = `checkin:${eventId}:${userAddress}`;
+    const checkInKey = `checkin:${chain}:${contractAddress}:${eventId}:${userAddress}`;
     await kv.del(checkInKey);
 
     return result;

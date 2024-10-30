@@ -38,8 +38,9 @@ import { useToast } from "@/hooks/use-toast";
 import { createEvent, getDeployedContracts } from "@/app/actions/contract";
 import useWalletStore from "@/app/store/useWalletStore";
 import "leaflet/dist/leaflet.css";
-import { Loader2, Search, MapPin } from "lucide-react";
+import { Loader2, Search, MapPin, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import Link from "next/link";
 
 const customIcon = new Icon({
   iconUrl: "/images/marker-icon.png",
@@ -234,8 +235,43 @@ export default function CreateEventPage() {
       });
 
       toast({
-        title: "Event Created",
-        description: `Your event has been successfully created! Transaction Hash: ${result.transactionHash}`,
+        title: "Event Created Successfully! 🎉",
+        description: (
+          <div className="space-y-2">
+            <div className="flex flex-col space-y-1">
+              <p className="font-medium text-base">{data.name}</p>
+              <p className="text-sm text-muted-foreground">
+                Created on {selectedChain} network
+              </p>
+            </div>
+            <div className="flex flex-col space-y-1">
+              <div className="flex items-center space-x-2">
+                <Badge
+                  variant="outline"
+                  className="bg-purple-500/10 text-purple-500"
+                >
+                  Event ID: {result.eventId}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="bg-emerald-500/10 text-emerald-500"
+                >
+                  {data.maxAttendees} attendees max
+                </Badge>
+              </div>
+            </div>
+            <Link
+              href={result.explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-sm text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              View on Explorer
+              <ExternalLink className="ml-1 h-4 w-4" />
+            </Link>
+          </div>
+        ),
+        duration: 8000,
       });
     } catch (error) {
       console.error("Error creating event:", error);
