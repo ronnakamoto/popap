@@ -168,9 +168,10 @@ export default function EventDetailsPage() {
     setIsCheckingIn(true);
     try {
       await checkIn(
+        event.chain,
+        event.contractAddress,
         event.id,
         activeWallet.address,
-        selectedChain,
         activeWallet.index,
         userLocation.latitude,
         userLocation.longitude,
@@ -207,9 +208,10 @@ export default function EventDetailsPage() {
     setIsCheckingOut(true);
     try {
       await checkOut(
+        event.chain,
+        event.contractAddress,
         event.id,
         activeWallet.address,
-        selectedChain,
         activeWallet.index,
         userLocation.latitude,
         userLocation.longitude,

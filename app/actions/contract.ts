@@ -162,10 +162,14 @@ export async function callContractMethod({
 async function getNextEventId(
   contractAddress: string,
   chain: string,
-): Promise<number> {
+): Promise<any> {
   const key = `nextEventId:${chain}:${contractAddress}`;
-  const nextId = await kv.incr(key);
-  return nextId - 1; // We return nextId - 1 because incr returns the new value after incrementing
+  const eventId = await kv.get<number>(key);
+  if (!eventId) {
+    throw new Error("Could not get the Event ID");
+  }
+  // const nextId = await kv.incr(key);
+  return { eventId, key };
 }
 
 export async function createEvent({
@@ -192,7 +196,7 @@ export async function createEvent({
     const longitudeAbs = Math.abs(Math.floor(longitude * 1e6));
 
     // Get the next event ID for this contract
-    const eventId = await getNextEventId(contractAddress, chain);
+    const { eventId, key } = await getNextEventId(contractAddress, chain);
 
     // Find the createEvent ABI
     const createEventABI = ProofOfPhysicalAttendanceABI.abi.find(
@@ -237,6 +241,8 @@ export async function createEvent({
       explorerUrl,
       txHash,
     });
+
+    await kv.incr(key);
 
     return { contractAddress, transactionHash: txHash, explorerUrl, eventId };
   } catch (error) {

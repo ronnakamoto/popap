@@ -97,7 +97,6 @@ export async function createWallet(chain: string, fundAmount: string) {
     const newWallet = {
       chain,
       address: newAddress,
-      balance,
       index: newIndex,
     };
 
@@ -123,7 +122,8 @@ export async function getWallets() {
     for (const walletKey of chainWallets) {
       const wallet = await kv.get(`wallet:${walletKey}`);
       if (wallet) {
-        wallets.push(wallet);
+        const balance = await getWalletBalance(wallet.chain, wallet.address);
+        wallets.push({ ...wallet, balance });
       }
     }
   }
