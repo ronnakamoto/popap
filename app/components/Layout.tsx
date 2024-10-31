@@ -20,7 +20,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { name: "Events", href: "/events", icon: Calendar },
     { name: "Create Event", href: "/create-event", icon: MapPin },
-    { name: "My Attendance", href: "/my-attendance", icon: User },
   ];
 
   return (
@@ -32,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/" className="flex items-center space-x-2">
                 <MapPin className="h-8 w-8 text-purple-500" />
                 <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-                  PPAP
+                  POPAP
                 </span>
               </Link>
             </div>
