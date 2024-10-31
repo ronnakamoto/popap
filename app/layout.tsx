@@ -1,6 +1,8 @@
 import Layout from "./components/Layout";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
+import { Toaster } from "@/components/ui/toaster";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -23,6 +25,7 @@ export default function RootLayout({
     <html lang="en" className={`${spaceGrotesk.variable} font-sans`}>
       <body className="bg-gray-900 text-white">
         <Layout>{children}</Layout>
+        <Toaster />
       </body>
     </html>
   );
