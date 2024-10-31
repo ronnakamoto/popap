@@ -405,26 +405,21 @@ export async function checkOut(
     const latitudeAbs = Math.abs(Math.floor(latitude * 1e5));
     const longitudeAbs = Math.abs(Math.floor(longitude * 1e5));
 
+    // Find the checkIn ABI
+    const checkOutABI = ProofOfPhysicalAttendanceABI.abi.find(
+      (item) => item.type === "function" && item.name === "checkOut",
+    );
+
+    if (!checkOutABI) {
+      throw new Error("checkOut ABI not found");
+    }
+
     const result = await callContractMethod({
       chain,
       to: contractAddress,
       from: userAddress,
       method: "checkOut",
-      abi: JSON.stringify([
-        {
-          inputs: [
-            { name: "eventId", type: "uint256" },
-            { name: "latitude", type: "uint128" },
-            { name: "latitudeIsNegative", type: "bool" },
-            { name: "longitude", type: "uint128" },
-            { name: "longitudeIsNegative", type: "bool" },
-          ],
-          name: "checkOut",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-      ]),
+      abi: JSON.stringify([checkOutABI]),
       index,
       args: [
         eventId,
@@ -437,8 +432,13 @@ export async function checkOut(
 
     console.log("Check-out result:", result);
 
-    const checkInKey = `checkin:${chain}:${contractAddress}:${eventId}:${userAddress}`;
-    await kv.del(checkInKey);
+    const checkOutKey = `checkout:${chain}:${contractAddress}:${eventId}:${userAddress}`;
+    const checkOutData = {
+      timestamp: Date.now(),
+      transactionHash: result.data.hash,
+      explorerUrl: result.data.explorerUrl,
+    };
+    await kv.set(checkOutKey, checkOutData);
 
     return result;
   } catch (error) {
@@ -466,6 +466,29 @@ export async function getCheckInStatus(
         };
   } catch (error) {
     console.error("Error fetching check-in status:", error);
+    throw error;
+  }
+}
+
+export async function getCheckInOutStatus(
+  chain: string,
+  contractAddress: string,
+  eventId: string,
+  userAddress: string,
+) {
+  try {
+    const checkInKey = `checkin:${chain}:${contractAddress}:${eventId}:${userAddress}`;
+    const checkOutKey = `checkout:${chain}:${contractAddress}:${eventId}:${userAddress}`;
+    const [checkInData, checkOutData] = await Promise.all([
+      kv.get(checkInKey),
+      kv.get(checkOutKey),
+    ]);
+    return {
+      checkIn: checkInData ? { isCheckedIn: true, ...checkInData } : null,
+      checkOut: checkOutData ? { isCheckedOut: true, ...checkOutData } : null,
+    };
+  } catch (error) {
+    console.error("Error fetching check-in/out status:", error);
     throw error;
   }
 }
