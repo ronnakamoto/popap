@@ -2,6 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { format, formatDistanceToNow } from "date-fns";
+import {
+  MapPin,
+  Calendar,
+  Users,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
+import dynamic from "next/dynamic";
+
 import {
   Card,
   CardContent,
@@ -14,20 +29,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getEvent, checkIn, checkOut } from "@/app/actions/contract";
-import { format, formatDistanceToNow } from "date-fns";
 import {
-  MapPin,
-  Calendar,
-  Users,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
+  getEvent,
+  checkIn,
+  checkOut,
+  getCheckInStatus,
+} from "@/app/actions/contract";
 import useWalletStore from "@/app/store/useWalletStore";
-import dynamic from "next/dynamic";
 
 const MapWithNoSSR = dynamic(() => import("./Map"), { ssr: false });
 
@@ -47,6 +55,76 @@ interface Event {
   radiusMiles: number;
 }
 
+interface Transaction {
+  hash: string;
+  explorerUrl: string;
+}
+
+interface TransactionStatusProps {
+  isCheckedIn: boolean;
+  checkInTime: number | null;
+  transaction: Transaction | null;
+  isLoading: boolean;
+}
+
+function TransactionStatus({
+  isCheckedIn,
+  checkInTime,
+  transaction,
+  isLoading,
+}: TransactionStatusProps) {
+  if (isLoading) {
+    return (
+      <div className="bg-gray-700 p-4 rounded-lg">
+        <Skeleton className="h-7 w-48 bg-gray-600 mb-2" />
+        <Skeleton className="h-5 w-full bg-gray-600" />
+      </div>
+    );
+  }
+
+  if (!isCheckedIn || !checkInTime) return null;
+
+  return (
+    <Card className="bg-gray-700 border-gray-600">
+      <CardContent className="p-4 space-y-3">
+        <h3 className="text-lg font-semibold text-purple-300">
+          Check-in Status
+        </h3>
+
+        <div className="space-y-2">
+          <div className="flex items-center text-gray-300">
+            <Clock className="mr-2 h-4 w-4 text-purple-400" />
+            <span>
+              Checked in {formatDistanceToNow(checkInTime, { addSuffix: true })}
+            </span>
+          </div>
+
+          {transaction && (
+            <div className="flex items-center text-sm pt-2 border-t border-gray-600 space-x-2">
+              <span className="text-gray-400">Transaction:</span>
+              <Button
+                variant="link"
+                asChild
+                className="text-purple-400 hover:text-purple-300 p-0 h-auto font-mono"
+              >
+                <Link
+                  href={`${transaction.explorerUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1"
+                >
+                  {`${transaction.hash.slice(0, 6)}...${transaction.hash.slice(-4)}`}
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function EventDetailsPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,6 +138,7 @@ export default function EventDetailsPage() {
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
   const { toast } = useToast();
   const params = useParams();
   const { activeWallet, selectedChain } = useWalletStore();
@@ -74,15 +153,23 @@ export default function EventDetailsPage() {
           throw new Error("Invalid event ID format");
         }
 
-        console.log(
-          "chain, contractAddress, eventId: ",
-          chain,
-          contractAddress,
-          eventId,
-        );
         const eventDetails = await getEvent(chain, contractAddress, eventId);
-        console.log("eventDetails: ", eventDetails);
         setEvent(eventDetails);
+
+        if (activeWallet) {
+          const checkInStatus = await getCheckInStatus(
+            chain,
+            contractAddress,
+            eventId,
+            activeWallet.address,
+          );
+          setIsCheckedIn(checkInStatus.isCheckedIn);
+          setCheckInTime(checkInStatus.timestamp);
+          setTransaction({
+            hash: checkInStatus.transactionHash,
+            explorerUrl: checkInStatus.explorerUrl,
+          });
+        }
       } catch (err) {
         console.error("Error fetching event:", err);
         setError(
@@ -94,7 +181,7 @@ export default function EventDetailsPage() {
     }
 
     fetchEventDetails();
-  }, [params.id]);
+  }, [params.id, activeWallet]);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -167,7 +254,7 @@ export default function EventDetailsPage() {
 
     setIsCheckingIn(true);
     try {
-      await checkIn(
+      const result = await checkIn(
         event.chain,
         event.contractAddress,
         event.id,
@@ -178,6 +265,10 @@ export default function EventDetailsPage() {
       );
       setIsCheckedIn(true);
       setCheckInTime(Date.now());
+      setTransaction({
+        hash: result.data.hash,
+        explorerUrl: result.data.explorerUrl,
+      });
       toast({
         title: "Checked In",
         description: "You have successfully checked in to the event.",
@@ -207,7 +298,7 @@ export default function EventDetailsPage() {
 
     setIsCheckingOut(true);
     try {
-      await checkOut(
+      const result = await checkOut(
         event.chain,
         event.contractAddress,
         event.id,
@@ -217,6 +308,10 @@ export default function EventDetailsPage() {
         userLocation.longitude,
       );
       setIsCheckedIn(false);
+      setTransaction({
+        hash: result.transactionHash,
+        explorerUrl: `https://${event.chain}.etherscan.io`, // Adjust this based on your chain configurations
+      });
       toast({
         title: "Checked Out",
         description: "You have successfully checked out of the event.",
@@ -357,7 +452,7 @@ export default function EventDetailsPage() {
                   ? "Determining your location..."
                   : isWithinGeofence
                     ? "You're within the event area!"
-                    : "You're outside the event area."}
+                    : "You're  outside the event area."}
               </p>
             </div>
             {!isWithinGeofence && userLocation && (
@@ -366,17 +461,12 @@ export default function EventDetailsPage() {
               </p>
             )}
           </div>
-          {isCheckedIn && checkInTime && (
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold text-purple-300 mb-2">
-                Check-in Status
-              </h3>
-              <p className="text-gray-300">
-                Checked in{" "}
-                {formatDistanceToNow(checkInTime, { addSuffix: true })}
-              </p>
-            </div>
-          )}
+          <TransactionStatus
+            isCheckedIn={isCheckedIn}
+            checkInTime={checkInTime}
+            transaction={transaction}
+            isLoading={isCheckingIn || isCheckingOut}
+          />
         </CardContent>
         <CardFooter className="flex justify-between items-center">
           <p className="text-sm text-gray-400">

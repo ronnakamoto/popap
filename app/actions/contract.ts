@@ -375,7 +375,12 @@ export async function checkIn(
     console.log("Check-in result:", result);
 
     const checkInKey = `checkin:${chain}:${contractAddress}:${eventId}:${userAddress}`;
-    await kv.set(checkInKey, Date.now());
+    const checkInData = {
+      timestamp: Date.now(),
+      transactionHash: result.data.hash,
+      explorerUrl: result.data.explorerUrl,
+    };
+    await kv.set(checkInKey, checkInData);
 
     return result;
   } catch (error) {
@@ -438,6 +443,29 @@ export async function checkOut(
     return result;
   } catch (error) {
     console.error("Error checking out:", error);
+    throw error;
+  }
+}
+
+export async function getCheckInStatus(
+  chain: string,
+  contractAddress: string,
+  eventId: string,
+  userAddress: string,
+) {
+  try {
+    const checkInKey = `checkin:${chain}:${contractAddress}:${eventId}:${userAddress}`;
+    const checkInData = await kv.get(checkInKey);
+    return checkInData
+      ? { isCheckedIn: true, ...checkInData }
+      : {
+          isCheckedIn: false,
+          timestamp: null,
+          transactionHash: null,
+          explorerUrl: null,
+        };
+  } catch (error) {
+    console.error("Error fetching check-in status:", error);
     throw error;
   }
 }
