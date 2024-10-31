@@ -12,8 +12,8 @@ const chainConfigs = {
     rpcUrl: "http://localhost:8080/sepolia",
     chainId: 11155111,
   },
-  bitcoin: {
-    // We don't need RPC for Bitcoin in this example
+  "bitcoin-testnet": {
+    rpcUrl: "https://blockstream.info/testnet/api",
   },
   aurora: {
     rpcUrl: "https://mainnet.aurora.dev",
@@ -73,7 +73,7 @@ export async function createWallet(chain: string, fundAmount: string) {
 
     let balance = "0";
 
-    if (chain !== "bitcoin") {
+    if (!["bitcoin", "bitcoin-testnet"].includes(chain)) {
       // Fund the new address (except for Bitcoin)
       const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
       const wallet = new ethers.Wallet(

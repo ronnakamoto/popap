@@ -69,10 +69,10 @@ const chainConfigs: Record<string, ChainConfig> = {
     explorerUrl: "https://sepolia.etherscan.io",
     logoUrl: "/images/eth-logo.png",
   },
-  bitcoin: {
-    name: "Bitcoin",
+  "bitcoin-testnet": {
+    name: "Bitcoin Testnet",
     symbol: "BTC",
-    explorerUrl: "https://blockchain.info",
+    explorerUrl: "https://blockstream.info/testnet",
     logoUrl: "/images/bitcoin-logo.png",
   },
   aurora: {
