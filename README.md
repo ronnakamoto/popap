@@ -3,6 +3,8 @@
 A protocol built that verifies and records physical attendance using blockchain technology.
 This project implements a decentralized solution for confirming real-world presence at events or locations.
 
+![PoPAP](./assets/event-detail.png)
+
 PoPAP uses a HTTP-based RPC loadbalancer named Bunsan that exposes endpoints for blockchain interactions.
 The system provides a reliable way to verify physical attendance through blockchain technology, making it suitable for events, conferences, classes, and other scenarios requiring proof of presence.
 
