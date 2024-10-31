@@ -44,6 +44,15 @@ export async function deployContract({
   index,
 }: DeployContractParams) {
   try {
+    const requestBody = {
+      chain,
+      from,
+      bytecode: ProofOfPhysicalAttendanceABI.bytecode,
+      abi: ProofOfPhysicalAttendanceABI.abi,
+      index,
+      json: true,
+    };
+    console.log("requestBody: ", requestBody);
     const response = await fetch(
       `${API_BASE_URL}/extensions/near-mpc-accounts/deploy-contract`,
       {
@@ -51,14 +60,7 @@ export async function deployContract({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          chain,
-          from,
-          bytecode: ProofOfPhysicalAttendanceABI.bytecode,
-          abi: ProofOfPhysicalAttendanceABI.abi,
-          index,
-          json: true,
-        }),
+        body: JSON.stringify(requestBody),
       },
     );
 

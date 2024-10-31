@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -58,7 +60,7 @@ const chainConfigs: Record<
     symbol: "ETH",
     logoUrl: "/images/aurora-logo.webp",
   },
-  auroraTestnet: {
+  auroratestnet: {
     name: "Aurora Testnet",
     symbol: "ETH",
     logoUrl: "/images/aurora-logo.webp",
@@ -86,14 +88,17 @@ export default function WalletSelector() {
       setWallets(fetchedWallets);
       if (fetchedWallets.length > 0) {
         if (!activeWallet) {
+          // Only set the first wallet as active if there's no active wallet
           setActiveWallet(fetchedWallets[0]);
           setSelectedChain(fetchedWallets[0].chain);
         } else {
+          // Update the active wallet's balance if it exists in the fetched wallets
           const updatedActiveWallet = fetchedWallets.find(
             (w) => w.address === activeWallet.address,
           );
           if (updatedActiveWallet) {
             setActiveWallet(updatedActiveWallet);
+            setSelectedChain(updatedActiveWallet.chain);
           }
         }
       }
@@ -103,7 +108,7 @@ export default function WalletSelector() {
     } finally {
       setRefreshingWallets(new Set());
     }
-  }, [activeWallet, setActiveWallet, setSelectedChain, wallets]);
+  }, [activeWallet, setActiveWallet, setSelectedChain]);
 
   useEffect(() => {
     fetchWallets();
@@ -121,7 +126,7 @@ export default function WalletSelector() {
         ),
       );
       if (activeWallet && activeWallet.address === wallet.address) {
-        setActiveWallet({ ...activeWallet, balance: newBalance });
+        setActiveWallet((prev) => ({ ...prev, balance: newBalance }));
       }
       setLastRefreshed(new Date());
     } catch (error) {

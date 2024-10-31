@@ -19,7 +19,7 @@ const chainConfigs = {
     rpcUrl: "https://mainnet.aurora.dev",
     chainId: 1313161554,
   },
-  auroraTestnet: {
+  auroratestnet: {
     rpcUrl: "https://testnet.aurora.dev",
     chainId: 1313161555,
   },
@@ -159,3 +159,6 @@ export async function updateWalletBalances() {
     }
   }
 }
+
+export async function sendFunds() {}
+export async function receiveFunds() {}
