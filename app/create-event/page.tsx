@@ -228,9 +228,9 @@ export default function CreateEventPage() {
           maxAttendees: data.maxAttendees,
           minStayMinutes: data.minStayMinutes,
           requiresVerification: data.requiresVerification,
-          latitude: Math.floor(data.latitude * 1e6),
-          longitude: Math.floor(data.longitude * 1e6),
-          radiusMiles: Math.floor(data.radiusMiles * 1e6),
+          latitude: data.latitude,
+          longitude: data.longitude,
+          radiusMiles: Math.floor(data.radiusMiles),
         },
       });
 
@@ -552,7 +552,7 @@ export default function CreateEventPage() {
                     Current Location
                   </Button>
                 </div>
-                <div className="h-[400px] rounded-md overflow-hidden">
+                <div className="h-[400px] rounded-md overflow-hidden relative z-0">
                   <MapContainer
                     center={position}
                     zoom={13}

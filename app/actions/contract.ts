@@ -48,7 +48,7 @@ export async function deployContract({
       chain,
       from,
       bytecode: ProofOfPhysicalAttendanceABI.bytecode,
-      abi: ProofOfPhysicalAttendanceABI.abi,
+      // abi: JSON.stringify(ProofOfPhysicalAttendanceABI.abi),
       index,
       json: true,
     };
@@ -70,21 +70,25 @@ export async function deployContract({
 
     const result = await response.json();
 
+    if (!result.success) {
+      throw new Error("Could not deploy the contract");
+    }
+
     const contractData: ContractData = {
       chain,
       from,
-      contractAddress: result.contractAddress,
-      explorerUrl: result.explorerUrl,
-      transactionHash: result.transactionHash,
+      contractAddress: result.data.contractAddress,
+      explorerUrl: result.data.explorerUrl,
+      transactionHash: result.data.transactionHash,
       deployedAt: Date.now(),
     };
 
     // Store all data from the result in KV store
-    const contractKey = `contract:${chain}:${from}:${result.contractAddress}`;
+    const contractKey = `contract:${chain}:${from}:${result.data.contractAddress}`;
     await kv.set(contractKey, contractData);
 
     // Also store a mapping of contractAddress to the contract key for easier lookup
-    await kv.set(`contractAddress:${result.contractAddress}`, contractKey);
+    await kv.set(`contractAddress:${result.data.contractAddress}`, contractKey);
 
     return contractData;
   } catch (error) {
@@ -168,7 +172,7 @@ async function getNextEventId(
   const key = `nextEventId:${chain}:${contractAddress}`;
   const eventId = await kv.get<number>(key);
   if (!eventId) {
-    throw new Error("Could not get the Event ID");
+    return { eventId: 0, key };
   }
   // const nextId = await kv.incr(key);
   return { eventId, key };
@@ -194,8 +198,8 @@ export async function createEvent({
       minStayMinutes,
     } = eventParams;
 
-    const latitudeAbs = Math.abs(Math.floor(latitude * 1e6));
-    const longitudeAbs = Math.abs(Math.floor(longitude * 1e6));
+    const latitudeAbs = Math.abs(Math.floor(latitude * 1e5));
+    const longitudeAbs = Math.abs(Math.floor(longitude * 1e5));
 
     // Get the next event ID for this contract
     const { eventId, key } = await getNextEventId(contractAddress, chain);
@@ -225,7 +229,7 @@ export async function createEvent({
         latitude < 0,
         longitudeAbs.toString(),
         longitude < 0,
-        Math.floor(radiusMiles * 1e6).toString(),
+        Math.floor(radiusMiles).toString(),
         maxAttendees.toString(),
         minStayMinutes.toString(),
       ],
@@ -288,9 +292,9 @@ export async function getEvents() {
           id: event.eventId, // Use eventId from the event object
           ...event,
           // Convert coordinates from stored format (already in event object with correct values)
-          latitude: event.latitude / 1e6,
-          longitude: event.longitude / 1e6,
-          radiusMiles: event.radiusMiles / 1e6,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          radiusMiles: event.radiusMiles,
           // These fields are already in the event object, no need to parse from key
           chain: event.chain,
           contractAddress: event.contractAddress,
@@ -317,9 +321,9 @@ export async function getEvent(
     return {
       id: eventId,
       ...event,
-      latitude: event.latitude / 1e6,
-      longitude: event.longitude / 1e6,
-      radiusMiles: event.radiusMiles / 1e6,
+      latitude: event.latitude,
+      longitude: event.longitude,
+      radiusMiles: event.radiusMiles,
     };
   } catch (error) {
     console.error("Error fetching event:", error);
@@ -340,29 +344,24 @@ export async function checkIn(
     const event = await getEvent(chain, contractAddress, eventId);
     if (!event) throw new Error("Event not found");
 
-    const latitudeAbs = Math.abs(Math.floor(latitude * 1e6));
-    const longitudeAbs = Math.abs(Math.floor(longitude * 1e6));
+    const latitudeAbs = Math.abs(Math.floor(latitude * 1e5));
+    const longitudeAbs = Math.abs(Math.floor(longitude * 1e5));
+
+    // Find the checkIn ABI
+    const checkInABI = ProofOfPhysicalAttendanceABI.abi.find(
+      (item) => item.type === "function" && item.name === "checkIn",
+    );
+
+    if (!checkInABI) {
+      throw new Error("checkIn ABI not found");
+    }
 
     const result = await callContractMethod({
       chain,
       to: contractAddress,
       from: userAddress,
       method: "checkIn",
-      abi: JSON.stringify([
-        {
-          inputs: [
-            { name: "eventId", type: "uint256" },
-            { name: "latitude", type: "uint128" },
-            { name: "latitudeIsNegative", type: "bool" },
-            { name: "longitude", type: "uint128" },
-            { name: "longitudeIsNegative", type: "bool" },
-          ],
-          name: "checkIn",
-          outputs: [],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-      ]),
+      abi: JSON.stringify([checkInABI]),
       index,
       args: [
         eventId,
@@ -398,8 +397,8 @@ export async function checkOut(
     const event = await getEvent(chain, contractAddress, eventId);
     if (!event) throw new Error("Event not found");
 
-    const latitudeAbs = Math.abs(Math.floor(latitude * 1e6));
-    const longitudeAbs = Math.abs(Math.floor(longitude * 1e6));
+    const latitudeAbs = Math.abs(Math.floor(latitude * 1e5));
+    const longitudeAbs = Math.abs(Math.floor(longitude * 1e5));
 
     const result = await callContractMethod({
       chain,

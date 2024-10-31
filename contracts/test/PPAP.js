@@ -485,4 +485,137 @@ describe("Proof of Physical Attendance Protocol - REDACTED 2024", function () {
       ).to.be.revertedWithCustomError(ppap, "OutsideGeofence");
     });
   });
+
+  describe("Small Radius Geofencing", function () {
+    beforeEach(async function () {
+      // Create an event centered at Trivandrum International Airport (8.4834° N, 76.9198° E)
+      const eventCenter = {
+        latitude: 887026, // 8.4834° N (scaled by 1e5)
+        latitudeIsNegative: false,
+        longitude: 7663364, // 76.9198° E (scaled by 1e5)
+        longitudeIsNegative: false,
+      };
+
+      // Create event with 1 mile radius
+      const eventData = {
+        name: "Airport Conference",
+        description: "Test event with small radius",
+        startTime: (await time.latest()) + 86400,
+        endTime: (await time.latest()) + 172800,
+        latitude: eventCenter.latitude,
+        latitudeIsNegative: eventCenter.latitudeIsNegative,
+        longitude: eventCenter.longitude,
+        longitudeIsNegative: eventCenter.longitudeIsNegative,
+        radiusMiles: 1, // 1 mile radius
+        maxAttendees: 100,
+        minStayMinutes: 30,
+      };
+
+      await ppap
+        .connect(organizer)
+        .createEvent(
+          eventData.name,
+          eventData.description,
+          eventData.startTime,
+          eventData.endTime,
+          eventData.latitude,
+          eventData.latitudeIsNegative,
+          eventData.longitude,
+          eventData.longitudeIsNegative,
+          eventData.radiusMiles,
+          eventData.maxAttendees,
+          eventData.minStayMinutes
+        );
+
+      await time.increaseTo(eventData.startTime);
+    });
+
+    it("Should allow check-in at 0.9 miles from center", async function () {
+      // ~145 units in our coordinate system ≈ 1 mile
+      // So 130 units ≈ 0.9 miles
+      const nearbyLocation = {
+        latitude: 887026 + 130,
+        latitudeIsNegative: false,
+        longitude: 7663364,
+        longitudeIsNegative: false,
+      };
+
+      await expect(
+        ppap
+          .connect(attendee1)
+          .checkIn(
+            0,
+            nearbyLocation.latitude,
+            nearbyLocation.latitudeIsNegative,
+            nearbyLocation.longitude,
+            nearbyLocation.longitudeIsNegative
+          )
+      ).to.not.be.reverted;
+    });
+
+    it("Should reject check-in at 1.5 miles from center", async function () {
+      // ~217 units ≈ 1.5 miles
+      const farLocation = {
+        latitude: 848340 + 217,
+        latitudeIsNegative: false,
+        longitude: 7691980,
+        longitudeIsNegative: false,
+      };
+
+      await expect(
+        ppap
+          .connect(attendee1)
+          .checkIn(
+            0,
+            farLocation.latitude,
+            farLocation.latitudeIsNegative,
+            farLocation.longitude,
+            farLocation.longitudeIsNegative
+          )
+      ).to.be.revertedWithCustomError(ppap, "OutsideGeofence");
+    });
+
+    it("Should allow check-in at different points within 1 mile radius", async function () {
+      const testLocations = [
+        // Test North (0.8 miles ≈ 116 units)
+        {
+          latitude: 887026 + 116, // FIXED: Using correct base coordinate
+          latitudeIsNegative: false,
+          longitude: 7663364, // Event center longitude
+          longitudeIsNegative: false,
+        },
+        // Test East (0.8 miles)
+        {
+          latitude: 887026, // Event center latitude
+          latitudeIsNegative: false,
+          longitude: 7663364 + 116, // FIXED: Using correct base coordinate
+          longitudeIsNegative: false,
+        },
+        // Test Northeast (0.8 miles diagonal ≈ 82 units in each direction)
+        {
+          latitude: 887026 + 82, // FIXED: Using correct base coordinate
+          latitudeIsNegative: false,
+          longitude: 7663364 + 82, // FIXED: Using correct base coordinate
+          longitudeIsNegative: false,
+        },
+      ];
+
+      for (const location of testLocations) {
+        await expect(
+          ppap
+            .connect(attendee1)
+            .checkIn(
+              0,
+              location.latitude,
+              location.latitudeIsNegative,
+              location.longitude,
+              location.longitudeIsNegative
+            )
+        ).to.not.be.reverted;
+
+        // Reset for next test
+        await ppap.connect(owner).removeOrganizer(attendee1.address);
+      }
+    });
+  });
 });

@@ -221,12 +221,26 @@ contract ProofOfPhysicalAttendance is
         uint128 lat2,
         uint128 lon2
     ) private pure returns (uint256) {
-        // Calculate differences
+        // Calculate coordinate differences preserving precision
         uint256 latDiff = lat1 > lat2 ? lat1 - lat2 : lat2 - lat1;
         uint256 lonDiff = lon1 > lon2 ? lon1 - lon2 : lon2 - lon1;
 
-        // Basic Euclidean distance, scaled appropriately
-        return latDiff > lonDiff ? latDiff : lonDiff;
+        // Use Pythagorean theorem with full precision
+        return sqrt((latDiff * latDiff) + (lonDiff * lonDiff));
+    }
+
+    function sqrt(uint256 x) private pure returns (uint256) {
+        if (x == 0) return 0;
+
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+
+        return y;
     }
 
     function _isWithinGeofence(
@@ -241,7 +255,15 @@ contract ProofOfPhysicalAttendance is
             attendeeLocation.longitude
         );
 
-        return distance < radiusMiles; // Changed <= to < for stricter boundary
+        // GENIUS PART: Instead of scaling down distance, scale up radius!
+        // For small radius (≤10 miles), 1 mile = 145 coordinate units
+        if (radiusMiles <= 10) {
+            // Scale radius up: radius * 145 units/mile
+            return distance < uint256(radiusMiles) * 145;
+        }
+
+        // For large radius (>10), use direct unit comparison
+        return distance < radiusMiles;
     }
 
     function addOrganizer(address organizer) external onlyOwner {

@@ -326,7 +326,7 @@ export default function EventDetailsPage() {
                 </div>
               </div>
             </div>
-            <div className="flex-1 h-64 rounded-lg overflow-hidden">
+            <div className="flex-1 h-64 rounded-lg overflow-hidden relative z-0">
               <MapWithNoSSR
                 center={[event.latitude, event.longitude]}
                 zoom={15}
