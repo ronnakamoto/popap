@@ -11,6 +11,8 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
+  Check,
+  Copy,
 } from "lucide-react";
 import {
   Card,
@@ -45,9 +47,15 @@ import {
   createWallet,
   getWallets,
   updateWalletBalances,
-  sendFunds,
   receiveFunds,
+  sendETH,
 } from "../actions/wallet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ChainConfig {
   name: string;
@@ -109,6 +117,7 @@ export default function EnhancedMultiChainWalletCreator() {
   const [isSending, setIsSending] = useState(false);
   const [isReceiving, setIsReceiving] = useState(false);
   const [expandedWallet, setExpandedWallet] = useState<number | null>(null);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWallets();
@@ -149,18 +158,26 @@ export default function EnhancedMultiChainWalletCreator() {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedAddress(text);
+    });
+  };
+
   const handleSendFunds = async () => {
     if (!selectedWallet) return;
     setIsSending(true);
     setError("");
     try {
-      await sendFunds(
+      await sendETH(
         selectedWallet.chain,
         selectedWallet.address,
         recipientAddress,
         sendAmount,
+        selectedWallet.index,
       );
-      await fetchWallets();
+      // Refresh wallet balances after sending funds
+      await handleRefreshBalances();
       setSendAmount("");
       setRecipientAddress("");
     } catch (err: any) {
@@ -303,13 +320,41 @@ export default function EnhancedMultiChainWalletCreator() {
                 </CardHeader>
                 <CardContent className="pb-2">
                   <div className="space-y-1 text-sm">
-                    <p className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Address:</span>
-                      <span className="font-mono text-purple-300">
-                        {wallet.address.slice(0, 6)}...
-                        {wallet.address.slice(-4)}
-                      </span>
-                    </p>
+                      <div className="flex items-center">
+                        <span className="font-mono text-purple-300 mr-2">
+                          {wallet.address.slice(0, 6)}...
+                          {wallet.address.slice(-4)}
+                        </span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 p-0"
+                                onClick={() => copyToClipboard(wallet.address)}
+                              >
+                                {copiedAddress === wallet.address ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4 text-purple-400" />
+                                )}
+                                <span className="sr-only">Copy address</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {copiedAddress === wallet.address
+                                  ? "Copied!"
+                                  : "Copy address"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
                     <p className="flex justify-between">
                       <span className="text-gray-400">Balance:</span>
                       <span className="font-mono text-purple-300">
@@ -340,7 +385,7 @@ export default function EnhancedMultiChainWalletCreator() {
                             <div className="grid gap-4 py-4">
                               <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="amount" className="text-right">
-                                  Amount
+                                  Amount (ETH)
                                 </Label>
                                 <Input
                                   id="amount"

@@ -12,9 +12,9 @@ const chainConfigs = {
     rpcUrl: "http://localhost:8080/sepolia",
     chainId: 11155111,
   },
-  "bitcoin-testnet": {
-    rpcUrl: "https://blockstream.info/testnet/api",
-  },
+  // "bitcoin-testnet": {
+  //   rpcUrl: "https://blockstream.info/testnet/api",
+  // },
   aurora: {
     rpcUrl: "https://mainnet.aurora.dev",
     chainId: 1313161554,
@@ -160,5 +160,45 @@ export async function updateWalletBalances() {
   }
 }
 
-export async function sendFunds() {}
+export async function sendETH(
+  chain: string,
+  from: string,
+  to: string,
+  value: string,
+  index: number,
+) {
+  try {
+    const valueInWei = ethers.parseEther(value).toString();
+    const response = await fetch(
+      "http://localhost:8080/extensions/near-mpc-accounts/send-eth",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chain,
+          from,
+          to,
+          value: valueInWei,
+          index,
+          json: true,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Removed the balance update in KV store as per the request
+
+    return result;
+  } catch (error) {
+    console.error("Error sending ETH:", error);
+    throw error;
+  }
+}
 export async function receiveFunds() {}

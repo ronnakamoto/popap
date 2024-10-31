@@ -36,6 +36,7 @@ import {
   getCheckInOutStatus,
 } from "@/app/actions/contract";
 import useWalletStore from "@/app/store/useWalletStore";
+import { Countdown } from "./Countdown";
 
 const MapWithNoSSR = dynamic(() => import("./Map"), { ssr: false });
 
@@ -381,12 +382,15 @@ export default function EventDetailsPage() {
                 {format(new Date(event.startTime * 1000), "PPP")}
               </CardDescription>
             </div>
-            <Badge
-              variant="outline"
-              className="text-sm bg-gray-700 text-purple-300 border-purple-400"
-            >
-              {event.chain}
-            </Badge>
+            <div className="flex space-x-2">
+              <Badge
+                variant="outline"
+                className="text-sm bg-gray-700 text-purple-300 border-purple-400"
+              >
+                {event.chain}
+              </Badge>
+              <Countdown startTime={event.startTime} endTime={event.endTime} />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
